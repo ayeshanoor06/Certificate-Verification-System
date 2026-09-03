@@ -90,7 +90,7 @@ fun CertificateVerificationApp() {
 
             Button(
                 onClick = {
-                    // QR generation will be added here later
+
                 },
                 modifier = Modifier.width(240.dp)
             ) {
