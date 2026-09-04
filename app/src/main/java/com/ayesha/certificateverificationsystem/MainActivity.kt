@@ -1,7 +1,8 @@
 package com.ayesha.certificateverificationsystem
 
-import android.os.Bundle
+import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,10 +21,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,6 +56,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CertificateVerificationApp() {
 
+    // Context used to open the QR scanner
+    val context = LocalContext.current
+
+    // Certificate form fields
     var studentName by remember {
         mutableStateOf("")
     }
@@ -61,6 +72,7 @@ fun CertificateVerificationApp() {
         mutableStateOf("")
     }
 
+    // Generated certificate information
     var certificateId by remember {
         mutableStateOf("")
     }
@@ -69,18 +81,22 @@ fun CertificateVerificationApp() {
         mutableStateOf<Bitmap?>(null)
     }
 
+    // Loading state
     var isSaving by remember {
         mutableStateOf(false)
     }
 
+    // Status message
     var message by remember {
         mutableStateOf("")
     }
 
+    // Firestore repository
     val repository = remember {
         FirestoreRepository()
     }
 
+    // Coroutine scope
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -98,15 +114,26 @@ fun CertificateVerificationApp() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Screen title
             Text(
-                text = "Generate Certificate",
+                text = "Certificate Verification System",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            Text(
+                text = "Generate and verify internship certificates",
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Student name
             OutlinedTextField(
                 value = studentName,
                 onValueChange = {
@@ -121,6 +148,7 @@ fun CertificateVerificationApp() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Internship title
             OutlinedTextField(
                 value = internshipTitle,
                 onValueChange = {
@@ -135,6 +163,7 @@ fun CertificateVerificationApp() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Issue date
             OutlinedTextField(
                 value = issueDate,
                 onValueChange = {
@@ -152,24 +181,32 @@ fun CertificateVerificationApp() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Generate certificate button
             Button(
                 onClick = {
 
+                    // Check whether all fields are filled
                     if (
                         studentName.isBlank() ||
                         internshipTitle.isBlank() ||
                         issueDate.isBlank()
                     ) {
+
                         message = "Please fill all fields."
+
                         return@Button
                     }
 
+                    // Start loading
                     isSaving = true
+
                     message = ""
 
+                    // Generate a unique certificate ID
                     val newCertificateId =
                         generateCertificateId()
 
+                    // Create certificate object
                     val certificate = Certificate(
                         certificateId = newCertificateId,
                         studentName = studentName.trim(),
@@ -178,6 +215,7 @@ fun CertificateVerificationApp() {
                         valid = true
                     )
 
+                    // Save certificate to Firestore
                     scope.launch {
 
                         val saved =
@@ -187,8 +225,10 @@ fun CertificateVerificationApp() {
 
                         if (saved) {
 
+                            // Store generated ID
                             certificateId = newCertificateId
 
+                            // Generate QR using certificate ID
                             qrBitmap =
                                 generateQRCode(newCertificateId)
 
@@ -221,34 +261,62 @@ fun CertificateVerificationApp() {
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Scan QR button
+            Button(
+                onClick = {
+
+                    val intent = Intent(
+                        context,
+                        QRScannerActivity::class.java
+                    )
+
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    text = "Scan QR Code"
+                )
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Status message
             if (message.isNotEmpty()) {
 
                 Text(
                     text = message,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
+            // Show certificate ID after generation
             if (certificateId.isNotEmpty()) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "Certificate ID",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = certificateId,
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
             }
 
+            // Show QR code
             qrBitmap?.let { bitmap ->
 
                 Spacer(modifier = Modifier.height(20.dp))
