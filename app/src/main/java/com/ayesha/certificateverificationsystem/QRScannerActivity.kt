@@ -7,6 +7,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class QRScannerActivity : ComponentActivity() {
 
@@ -16,27 +20,9 @@ class QRScannerActivity : ComponentActivity() {
 
         if (result.contents != null) {
 
-            // Show what was scanned
-            Toast.makeText(
-                this,
-                "Scanned: ${result.contents}",
-                Toast.LENGTH_LONG
-            ).show()
+            val certificateId = result.contents.trim()
 
-            // Send the certificate ID back
-            val intent = Intent().apply {
-                putExtra(
-                    "certificateId",
-                    result.contents
-                )
-            }
-
-            setResult(
-                Activity.RESULT_OK,
-                intent
-            )
-
-            finish()
+            verifyCertificate(certificateId)
 
         } else {
 
@@ -46,10 +32,7 @@ class QRScannerActivity : ComponentActivity() {
                 Toast.LENGTH_SHORT
             ).show()
 
-            setResult(
-                Activity.RESULT_CANCELED
-            )
-
+            setResult(Activity.RESULT_CANCELED)
             finish()
         }
     }
@@ -64,29 +47,103 @@ class QRScannerActivity : ComponentActivity() {
 
         val options = ScanOptions().apply {
 
-            // Message shown below scanner
             setPrompt(
                 "Point the camera at the certificate QR code"
             )
 
-            // Sound when QR is detected
             setBeepEnabled(true)
 
-            // Allow portrait/landscape
             setOrientationLocked(false)
 
-            // Only scan QR codes
             setDesiredBarcodeFormats(
                 ScanOptions.QR_CODE
             )
 
-            // Use rear camera
             setCameraId(0)
-
 
             setTimeout(30000)
         }
 
         barcodeLauncher.launch(options)
+    }
+
+    private fun verifyCertificate(
+        certificateId: String
+    ) {
+
+        Toast.makeText(
+            this,
+            "Checking certificate...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        CoroutineScope(Dispatchers.IO).launch {
+
+            val repository = FirestoreRepository()
+
+            val certificate =
+                repository.getCertificate(certificateId)
+
+            withContext(Dispatchers.Main) {
+
+                if (certificate != null) {
+
+                    val intent = Intent(
+                        this@QRScannerActivity,
+                        VerificationResultActivity::class.java
+                    )
+
+                    intent.putExtra(
+                        "certificateId",
+                        certificateId
+                    )
+
+                    intent.putExtra(
+                        "studentName",
+                        certificate.studentName
+                    )
+
+                    intent.putExtra(
+                        "internshipTitle",
+                        certificate.internshipTitle
+                    )
+
+                    intent.putExtra(
+                        "issueDate",
+                        certificate.issueDate
+                    )
+
+                    intent.putExtra(
+                        "valid",
+                        certificate.valid
+                    )
+
+                    startActivity(intent)
+
+                    finish()
+
+                } else {
+
+                    val intent = Intent(
+                        this@QRScannerActivity,
+                        VerificationResultActivity::class.java
+                    )
+
+                    intent.putExtra(
+                        "certificateId",
+                        certificateId
+                    )
+
+                    intent.putExtra(
+                        "valid",
+                        false
+                    )
+
+                    startActivity(intent)
+
+                    finish()
+                }
+            }
+        }
     }
 }

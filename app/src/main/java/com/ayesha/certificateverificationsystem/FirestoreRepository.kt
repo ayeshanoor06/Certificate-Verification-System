@@ -8,7 +8,11 @@ class FirestoreRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
 
-    suspend fun saveCertificate(certificate: Certificate): Boolean {
+    // Save a new certificate to Firestore
+    suspend fun saveCertificate(
+        certificate: Certificate
+    ): Boolean {
+
         return try {
 
             firestore
@@ -28,6 +32,42 @@ class FirestoreRepository {
             )
 
             false
+        }
+    }
+
+    // Get a certificate using its Certificate ID
+    suspend fun getCertificate(
+        certificateId: String
+    ): Certificate? {
+
+        return try {
+
+            val document = firestore
+                .collection("certificates")
+                .document(certificateId)
+                .get()
+                .await()
+
+            if (document.exists()) {
+
+                document.toObject(
+                    Certificate::class.java
+                )
+
+            } else {
+
+                null
+            }
+
+        } catch (e: Exception) {
+
+            Log.e(
+                "FirestoreRepository",
+                "Failed to verify certificate",
+                e
+            )
+
+            null
         }
     }
 }
